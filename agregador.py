@@ -12,7 +12,8 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from comun import (PUERTOS, url_de, permitir_origenes, exigir_clave, Metricas,
-                   ClienteServicio, CLAVE_API, registrar_servicio)
+                   ClienteServicio, CLAVE_API, registrar_servicio,
+                   asegurar_registro)
 
 app = FastAPI(
     title="Servicio Agregador",
@@ -35,10 +36,25 @@ class SolicitudFlujo(BaseModel):
 
 @app.get("/servicios", tags=["descubrimiento"])
 def servicios_disponibles():
-    """Consulta el registro: que servicios hay y donde estan."""
+    """Consulta el registro: que servicios hay y donde estan.
+
+    Si el directorio vuelve vacio es que el registro perdio su estado, no
+    que no haya servicios. Entonces se toca la gestion de cada uno para
+    que se republique y se vuelve a leer, de modo que el directorio se
+    repara solo en lugar de quedarse mintiendo.
+    """
     metricas.peticiones += 1
     try:
-        return registro.get("/servicios").json()
+        directorio = registro.get("/servicios").json()
+        if not directorio.get("servicios"):
+            asegurar_registro("agregador", url_de("agregador"), forzar=True)
+            for dependencia in (catalogo, rentas):
+                try:
+                    dependencia.get("/health")
+                except Exception:
+                    pass
+            directorio = registro.get("/servicios").json()
+        return directorio
     except Exception:
         metricas.errores += 1
         raise HTTPException(status_code=503, detail="El registro no responde")

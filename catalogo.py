@@ -18,7 +18,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from comun import (PUERTOS, url_de, permitir_origenes, exigir_clave, Metricas,
-                   calcular_etag, verificar_if_match, registrar_servicio)
+                   calcular_etag, verificar_if_match, registrar_servicio,
+                   asegurar_registro)
 
 ESPACIO_NOMBRES = "http://escom.ipn.mx/blockbuster"
 SOAP_ENV = "http://schemas.xmlsoap.org/soap/envelope/"
@@ -333,6 +334,7 @@ def wsdl():
 
 @app.get("/health", tags=["gestion"])
 def salud():
+    asegurar_registro("catalogo", url_de("catalogo"))
     return {"estado": "vivo", "servicio": "catalogo"}
 
 

@@ -16,7 +16,8 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from comun import (PUERTOS, url_de, permitir_origenes, exigir_clave, Metricas,
-                   ClienteServicio, CLAVE_API, registrar_servicio)
+                   ClienteServicio, CLAVE_API, registrar_servicio,
+                   asegurar_registro)
 
 MAXIMO_REINTENTOS = 5
 
@@ -168,6 +169,7 @@ def cerrar_renta(identificador: int):
 def salud():
     """Comprueba tambien la dependencia: un servicio no esta sano si su
     dependencia no responde."""
+    asegurar_registro("rentas", url_de("rentas"))
     try:
         dependencia = catalogo.get("/health").status_code == 200
     except Exception:
