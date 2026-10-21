@@ -28,8 +28,21 @@ PUERTOS = {
 
 
 def url_de(servicio: str) -> str:
+    """Resuelve en que direccion escucha un servicio.
+
+    En local cada uno usa un puerto distinto de 127.0.0.1. En el despliegue
+    la direccion llega por variable de entorno. Se tolera que venga sin
+    esquema (Render entrega "host:puerto" en algunas propiedades) y con una
+    barra final, porque httpx exige un esquema explicito.
+    """
     variable = f"URL_{servicio.upper()}"
-    return os.environ.get(variable, f"http://127.0.0.1:{PUERTOS[servicio]}")
+    destino = os.environ.get(variable)
+    if not destino:
+        return f"http://127.0.0.1:{PUERTOS[servicio]}"
+    destino = destino.strip().rstrip("/")
+    if "://" not in destino:
+        destino = f"http://{destino}"
+    return destino
 
 
 # --- Capa transversal de seguridad ------------------------------------------

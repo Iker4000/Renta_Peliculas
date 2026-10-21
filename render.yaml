@@ -1,9 +1,22 @@
 # Blueprint de Render: despliega los cuatro servicios desde este repositorio.
+#
 # Cada servicio recibe por variable de entorno la URL de los demas, de modo
-# que el mismo codigo funciona en local (127.0.0.1) y en la nube.
+# que el mismo codigo funciona en local (127.0.0.1) y en la nube sin cambios.
+#
+# IMPORTANTE: los servicios se comunican por sus URLs PUBLICAS, no por la red
+# privada de Render. En el plan gratuito un servicio puede enviar trafico
+# privado pero no recibirlo, asi que `fromService` con `property: hostport`
+# no sirve aqui: el agregador no alcanzaria al catalogo.
+#
+# Render genera el nombre de dominio a partir del nombre del servicio, y ese
+# nombre es unico en toda la plataforma. Por eso llevan el sufijo "-iker":
+# si el nombre estuviera ocupado, Render anadiria caracteres aleatorios y las
+# URLs de abajo dejarian de coincidir. Si cambias un nombre, cambia tambien
+# las cuatro URLs correspondientes.
+
 services:
   - type: web
-    name: sd-registro
+    name: sd-registro-iker
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -13,7 +26,7 @@ services:
         sync: false
 
   - type: web
-    name: sd-catalogo
+    name: sd-catalogo-iker
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -22,12 +35,12 @@ services:
       - key: CLAVE_API
         sync: false
       - key: URL_REGISTRO
-        fromService: { type: web, name: sd-registro, property: hostport }
+        value: https://sd-registro-iker.onrender.com
       - key: URL_CATALOGO
-        fromService: { type: web, name: sd-catalogo, property: hostport }
+        value: https://sd-catalogo-iker.onrender.com
 
   - type: web
-    name: sd-rentas
+    name: sd-rentas-iker
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -36,14 +49,14 @@ services:
       - key: CLAVE_API
         sync: false
       - key: URL_REGISTRO
-        fromService: { type: web, name: sd-registro, property: hostport }
+        value: https://sd-registro-iker.onrender.com
       - key: URL_CATALOGO
-        fromService: { type: web, name: sd-catalogo, property: hostport }
+        value: https://sd-catalogo-iker.onrender.com
       - key: URL_RENTAS
-        fromService: { type: web, name: sd-rentas, property: hostport }
+        value: https://sd-rentas-iker.onrender.com
 
   - type: web
-    name: sd-agregador
+    name: sd-agregador-iker
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -52,10 +65,10 @@ services:
       - key: CLAVE_API
         sync: false
       - key: URL_REGISTRO
-        fromService: { type: web, name: sd-registro, property: hostport }
+        value: https://sd-registro-iker.onrender.com
       - key: URL_CATALOGO
-        fromService: { type: web, name: sd-catalogo, property: hostport }
+        value: https://sd-catalogo-iker.onrender.com
       - key: URL_RENTAS
-        fromService: { type: web, name: sd-rentas, property: hostport }
+        value: https://sd-rentas-iker.onrender.com
       - key: URL_AGREGADOR
-        fromService: { type: web, name: sd-agregador, property: hostport }
+        value: https://sd-agregador-iker.onrender.com

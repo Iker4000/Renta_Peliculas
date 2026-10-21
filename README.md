@@ -108,15 +108,24 @@ escritura. Cuanto mayor sea, más probable es el conflicto.
 ## Despliegue
 
 **Backend en Render.** El archivo `render.yaml` es un blueprint que declara
-los cuatro servicios e inyecta en cada uno las URLs de los demás. En Render:
-*New → Blueprint*, se elige este repositorio y se define `CLAVE_API`.
+los cuatro servicios e inyecta en cada uno las URLs de los demás. En Render se
+entra a <https://dashboard.render.com/blueprints> → *New Blueprint*, se elige
+este repositorio y se define `CLAVE_API` (el mismo valor en los cuatro).
+
+Los servicios se comunican por sus **URLs públicas**, no por la red privada de
+Render: en el plan gratuito un servicio puede *enviar* tráfico privado pero no
+*recibirlo*, así que `fromService` con `property: hostport` dejaría al agregador
+sin poder alcanzar al catálogo. Como Render deriva el dominio del nombre del
+servicio y ese nombre es único en toda la plataforma, los nombres del blueprint
+llevan un sufijo propio; si se cambia un nombre hay que cambiar también las
+URLs que lo mencionan.
 
 **Frontend en GitHub Pages.** En *Settings → Pages*, fuente «Deploy from a
 branch», rama `main`, carpeta `/docs`. Después se introducen en la página las
 URLs públicas de los servicios, o se pasan en el enlace:
 
 ```
-https://<usuario>.github.io/<repo>/?catalogo=https://sd-catalogo.onrender.com&agregador=https://sd-agregador.onrender.com
+https://<usuario>.github.io/<repo>/?catalogo=https://sd-catalogo-iker.onrender.com&agregador=https://sd-agregador-iker.onrender.com
 ```
 
 ### Limitaciones conocidas
