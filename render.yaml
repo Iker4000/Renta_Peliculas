@@ -1,0 +1,61 @@
+# Blueprint de Render: despliega los cuatro servicios desde este repositorio.
+# Cada servicio recibe por variable de entorno la URL de los demas, de modo
+# que el mismo codigo funciona en local (127.0.0.1) y en la nube.
+services:
+  - type: web
+    name: sd-registro
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn registro:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CLAVE_API
+        sync: false
+
+  - type: web
+    name: sd-catalogo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn catalogo:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CLAVE_API
+        sync: false
+      - key: URL_REGISTRO
+        fromService: { type: web, name: sd-registro, property: hostport }
+      - key: URL_CATALOGO
+        fromService: { type: web, name: sd-catalogo, property: hostport }
+
+  - type: web
+    name: sd-rentas
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn rentas:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CLAVE_API
+        sync: false
+      - key: URL_REGISTRO
+        fromService: { type: web, name: sd-registro, property: hostport }
+      - key: URL_CATALOGO
+        fromService: { type: web, name: sd-catalogo, property: hostport }
+      - key: URL_RENTAS
+        fromService: { type: web, name: sd-rentas, property: hostport }
+
+  - type: web
+    name: sd-agregador
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn agregador:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CLAVE_API
+        sync: false
+      - key: URL_REGISTRO
+        fromService: { type: web, name: sd-registro, property: hostport }
+      - key: URL_CATALOGO
+        fromService: { type: web, name: sd-catalogo, property: hostport }
+      - key: URL_RENTAS
+        fromService: { type: web, name: sd-rentas, property: hostport }
+      - key: URL_AGREGADOR
+        fromService: { type: web, name: sd-agregador, property: hostport }

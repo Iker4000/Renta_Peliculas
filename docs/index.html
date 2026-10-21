@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blockbuster · Servicios Web</title>
+<style>
+  :root {
+    --fondo: #f7f7f8;
+    --panel: #ffffff;
+    --borde: #e0e0e4;
+    --texto: #1a1a1f;
+    --suave: #6b6b76;
+    --acento: #2d5bd7;
+    --ok: #1a7f45;
+    --aviso: #b06000;
+    --error: #c0392b;
+    --codigo: #f0f0f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #15151a; --panel: #1e1e25; --borde: #32323c; --texto: #ececf1;
+      --suave: #9b9bab; --acento: #7fa0f5; --ok: #4ec27e; --aviso: #e0a050;
+      --error: #f07a6c; --codigo: #26262f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fondo: #15151a; --panel: #1e1e25; --borde: #32323c; --texto: #ececf1;
+    --suave: #9b9bab; --acento: #7fa0f5; --ok: #4ec27e; --aviso: #e0a050;
+    --error: #f07a6c; --codigo: #26262f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px; background: var(--fondo); color: var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .envoltura { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .subtitulo { color: var(--suave); font-size: .9rem; margin-bottom: 24px; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--borde); border-radius: 10px;
+    padding: 18px; margin-bottom: 18px;
+  }
+  .panel h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em;
+              color: var(--suave); margin: 0 0 12px; font-weight: 600; }
+
+  label { display: block; font-size: .8rem; color: var(--suave); margin-bottom: 4px; }
+  input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 6px;
+    background: var(--fondo); color: var(--texto); font-size: .9rem;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .fila { display: flex; gap: 12px; flex-wrap: wrap; }
+  .fila > div { flex: 1 1 240px; }
+
+  button {
+    padding: 8px 14px; border: 1px solid var(--borde); border-radius: 6px;
+    background: var(--panel); color: var(--texto); font-size: .85rem; cursor: pointer;
+    font-weight: 500;
+  }
+  button:hover:not(:disabled) { border-color: var(--acento); color: var(--acento); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primario { background: var(--acento); color: #fff; border-color: var(--acento); }
+  button.primario:hover:not(:disabled) { opacity: .9; color: #fff; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th { text-align: left; font-size: .75rem; text-transform: uppercase;
+       letter-spacing: .05em; color: var(--suave); padding: 6px 8px;
+       border-bottom: 1px solid var(--borde); }
+  td { padding: 10px 8px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+
+  .insignia { display: inline-block; padding: 2px 8px; border-radius: 999px;
+              font-size: .75rem; font-weight: 600; }
+  .libre { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+  .ocupada { background: color-mix(in srgb, var(--aviso) 15%, transparent); color: var(--aviso); }
+
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+                font-size: .8rem; }
+  .etag { color: var(--suave); font-size: .75rem; }
+
+  #trafico { max-height: 300px; overflow-y: auto; }
+  .linea { display: flex; gap: 10px; padding: 6px 8px; border-bottom: 1px solid var(--borde);
+           font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .78rem;
+           align-items: baseline; }
+  .linea:last-child { border-bottom: none; }
+  .codigo { font-weight: 700; min-width: 34px; }
+  .c2 { color: var(--ok); } .c4 { color: var(--error); } .c5 { color: var(--error); }
+  .ruta { flex: 1; word-break: break-all; }
+  .nota { color: var(--suave); }
+
+  .vacio { color: var(--suave); font-size: .85rem; padding: 12px 8px; }
+  .aviso { background: color-mix(in srgb, var(--aviso) 12%, transparent);
+           border: 1px solid color-mix(in srgb, var(--aviso) 35%, transparent);
+           color: var(--texto); padding: 10px 12px; border-radius: 6px;
+           font-size: .85rem; margin-bottom: 16px; }
+  .resumen { display: flex; gap: 20px; font-size: .85rem; color: var(--suave);
+             margin-bottom: 12px; flex-wrap: wrap; }
+  .resumen strong { color: var(--texto); }
+</style>
+</head>
+<body>
+<div class="envoltura">
+
+  <h1>Blockbuster · Servicios Web</h1>
+  <p class="subtitulo">
+    Cliente de la Práctica 6. Consume los servicios REST y muestra el ciclo
+    <code>ETag</code> → <code>If-Match</code> del control de concurrencia optimista.
+  </p>
+
+  <div class="aviso" id="aviso" hidden></div>
+
+  <div class="panel">
+    <h2>Capa de comunicaciones</h2>
+    <div class="fila">
+      <div>
+        <label for="urlCatalogo">URL del servicio de catálogo</label>
+        <input id="urlCatalogo" value="http://127.0.0.1:8001">
+      </div>
+      <div>
+        <label for="urlAgregador">URL del agregador</label>
+        <input id="urlAgregador" value="http://127.0.0.1:8003">
+      </div>
+      <div>
+        <label for="clave">X-API-Key</label>
+        <input id="clave" value="practica6">
+      </div>
+      <div>
+        <label for="cliente">Id de cliente</label>
+        <input id="cliente" value="1" type="number" min="1">
+      </div>
+    </div>
+    <div class="acciones">
+      <button class="primario" id="btnCargar">Cargar catálogo</button>
+      <button id="btnVista">Vista agregada</button>
+      <button id="btnFlujo">Ejecutar coreografía</button>
+      <button id="btnSalud">Comprobar salud</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Catálogo</h2>
+    <div class="resumen" id="resumen" hidden></div>
+    <table>
+      <thead>
+        <tr><th>Película</th><th>Estado</th><th>Versión / ETag</th><th></th></tr>
+      </thead>
+      <tbody id="tabla">
+        <tr><td colspan="4" class="vacio">Pulsa «Cargar catálogo» para empezar.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Tráfico HTTP (capa de mensajes)</h2>
+    <div id="trafico"><div class="vacio">Todavía no se ha enviado ninguna petición.</div></div>
+  </div>
+
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let peliculas = [];
+
+function registrar(metodo, url, codigo, nota) {
+  const caja = $("trafico");
+  if (caja.querySelector(".vacio")) caja.innerHTML = "";
+  const fila = document.createElement("div");
+  fila.className = "linea";
+  const clase = codigo ? "c" + String(codigo)[0] : "nota";
+  fila.innerHTML = `<span class="codigo ${clase}">${codigo || "—"}</span>` +
+                   `<span class="ruta">${metodo} ${url.replace(/^https?:\/\/[^/]+/, "")}</span>` +
+                   `<span class="nota">${nota || ""}</span>`;
+  caja.prepend(fila);
+}
+
+function avisar(texto, esError) {
+  const caja = $("aviso");
+  caja.hidden = !texto;
+  caja.textContent = texto || "";
+  caja.style.borderColor = esError ? "var(--error)" : "";
+}
+
+async function pedir(metodo, url, opciones = {}) {
+  try {
+    const respuesta = await fetch(url, { method: metodo, ...opciones });
+    const etag = respuesta.headers.get("ETag");
+    registrar(metodo, url, respuesta.status, etag ? `ETag ${etag}` : "");
+    return respuesta;
+  } catch (error) {
+    // Un fallo aquí suele ser CORS o un servicio caído, no un error de la API
+    registrar(metodo, url, null, "sin respuesta");
+    avisar("No se pudo contactar con el servicio. Revisa la URL, que esté " +
+           "arrancado y que permita CORS desde este origen.", true);
+    throw error;
+  }
+}
+
+function pintar() {
+  const cuerpo = $("tabla");
+  if (!peliculas.length) {
+    cuerpo.innerHTML = '<tr><td colspan="4" class="vacio">El catálogo está vacío.</td></tr>';
+    return;
+  }
+  cuerpo.innerHTML = "";
+  for (const pelicula of peliculas) {
+    const fila = document.createElement("tr");
+    const libre = pelicula.disponible;
+    fila.innerHTML =
+      `<td>${pelicula.titulo}</td>` +
+      `<td><span class="insignia ${libre ? "libre" : "ocupada"}">` +
+        `${libre ? "Disponible" : "Cliente " + pelicula.rentada_por}</span></td>` +
+      `<td class="mono">v${pelicula.version}<br><span class="etag">${pelicula.etag || "—"}</span></td>` +
+      `<td></td>`;
+    const boton = document.createElement("button");
+    boton.textContent = libre ? "Rentar" : "Devolver";
+    boton.onclick = () => operar(pelicula, libre ? "rentar" : "devolver");
+    fila.lastElementChild.appendChild(boton);
+    cuerpo.appendChild(fila);
+  }
+}
+
+async function cargar() {
+  avisar("");
+  const base = $("urlCatalogo").value.replace(/\/$/, "");
+  const respuesta = await pedir("GET", `${base}/catalogo`);
+  const datos = await respuesta.json();
+  peliculas = datos.peliculas;
+
+  // Se pide cada película por separado para obtener SU ETag, que es el que
+  // habrá que enviar en If-Match al modificarla.
+  for (const pelicula of peliculas) {
+    const una = await pedir("GET", `${base}/catalogo/${encodeURIComponent(pelicula.titulo)}`);
+    pelicula.etag = una.headers.get("ETag");
+  }
+  $("resumen").hidden = false;
+  $("resumen").innerHTML =
+    `<span>Total <strong>${peliculas.length}</strong></span>` +
+    `<span>Disponibles <strong>${peliculas.filter(p => p.disponible).length}</strong></span>` +
+    `<span>Rentadas <strong>${peliculas.filter(p => !p.disponible).length}</strong></span>`;
+  pintar();
+}
+
+async function operar(pelicula, accion) {
+  avisar("");
+  const base = $("urlCatalogo").value.replace(/\/$/, "");
+  const url = `${base}/catalogo/${encodeURIComponent(pelicula.titulo)}/${accion}`;
+
+  const respuesta = await pedir("POST", url, {
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": $("clave").value,
+      "If-Match": pelicula.etag || "",   // aquí está el control optimista
+    },
+    body: JSON.stringify({ cliente: Number($("cliente").value) }),
+  });
+
+  if (respuesta.status === 412) {
+    avisar("412 Precondition Failed: otro cliente modificó la película desde " +
+           "que la leíste. Se recarga el catálogo con los ETag al día.", true);
+    await cargar();
+    return;
+  }
+  if (respuesta.status === 409) {
+    const cuerpo = await respuesta.json();
+    avisar("409 Conflict: " + (cuerpo.detail || "la operación no es válida ahora."), true);
+    await cargar();
+    return;
+  }
+  if (respuesta.status === 401) {
+    avisar("401: la cabecera X-API-Key falta o es incorrecta.", true);
+    return;
+  }
+  if (!respuesta.ok) {
+    const cuerpo = await respuesta.json().catch(() => ({}));
+    avisar(`${respuesta.status}: ${cuerpo.detail || "operación rechazada"}`, true);
+    return;
+  }
+  await cargar();
+}
+
+$("btnCargar").onclick = () => cargar().catch(() => {});
+
+$("btnVista").onclick = async () => {
+  avisar("");
+  const base = $("urlAgregador").value.replace(/\/$/, "");
+  try {
+    const datos = await (await pedir("GET", `${base}/vista`)).json();
+    avisar(`Agregación: ${datos.resumen.total} películas, ` +
+           `${datos.resumen.disponibles} disponibles, ${datos.resumen.rentadas} rentadas. ` +
+           `Una sola petición del cliente, dos invocaciones internas.`);
+  } catch (e) {}
+};
+
+$("btnFlujo").onclick = async () => {
+  avisar("");
+  const base = $("urlAgregador").value.replace(/\/$/, "");
+  try {
+    const respuesta = await pedir("POST", `${base}/flujo-renta`, {
+      headers: { "Content-Type": "application/json", "X-API-Key": $("clave").value },
+      body: JSON.stringify({ cliente: Number($("cliente").value) }),
+    });
+    const datos = await respuesta.json();
+    if (respuesta.ok) {
+      avisar(`Coreografía completada sobre «${datos.pelicula}» en ${datos.pasos.length} pasos.`);
+      datos.pasos.forEach(p => registrar("  paso " + p.paso, p.accion, null, p.resultado));
+    } else {
+      avisar("La coreografía no prosperó: " +
+             (datos.detail?.mensaje || JSON.stringify(datos.detail)), true);
+    }
+    await cargar();
+  } catch (e) {}
+};
+
+$("btnSalud").onclick = async () => {
+  avisar("");
+  const base = $("urlAgregador").value.replace(/\/$/, "");
+  try {
+    const datos = await (await pedir("GET", `${base}/health`)).json();
+    const caidos = Object.entries(datos.dependencias || {})
+                         .filter(([, vivo]) => !vivo).map(([n]) => n);
+    avisar(caidos.length ? `Estado degradado. No responden: ${caidos.join(", ")}.`
+                         : "Todos los servicios responden correctamente.",
+           caidos.length > 0);
+  } catch (e) {}
+};
+
+// Permite fijar las URLs desde el enlace: ?catalogo=...&agregador=...
+const parametros = new URLSearchParams(location.search);
+if (parametros.get("catalogo"))  $("urlCatalogo").value  = parametros.get("catalogo");
+if (parametros.get("agregador")) $("urlAgregador").value = parametros.get("agregador");
+</script>
+</body>
+</html>

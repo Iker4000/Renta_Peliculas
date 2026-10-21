@@ -1,0 +1,560 @@
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,mexico]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\hypersetup{hidelinks}
+
+% ---------- Estilo para los listados de codigo ----------
+\definecolor{fondocodigo}{RGB}{245,245,245}
+\definecolor{comentario}{RGB}{0,128,0}
+\definecolor{palabraclave}{RGB}{0,0,200}
+\definecolor{cadena}{RGB}{160,32,160}
+\definecolor{numerolinea}{RGB}{130,130,130}
+\definecolor{fondotraza}{RGB}{250,250,250}
+
+\lstdefinestyle{python}{
+    language=Python,
+    backgroundcolor=\color{fondocodigo},
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{palabraclave}\bfseries,
+    commentstyle=\color{comentario},
+    stringstyle=\color{cadena},
+    numbers=left,
+    numberstyle=\tiny\color{numerolinea},
+    numbersep=8pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=none,
+    tabsize=4,
+    literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+             {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+             {ñ}{{\~n}}1 {Ñ}{{\~N}}1
+}
+
+\lstdefinestyle{traza}{
+    language=,
+    backgroundcolor=\color{fondotraza},
+    basicstyle=\ttfamily\scriptsize,
+    numbers=none,
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    framesep=5pt,
+    rulecolor=\color{numerolinea},
+    literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+             {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+             {ñ}{{\~n}}1 {Ñ}{{\~N}}1
+}
+
+\lstset{style=python}
+
+\renewcommand{\lstlistingname}{Listing}
+
+\begin{document}
+
+% En babel espanol la comilla doble es un caracter activo
+\shorthandoff{"}
+
+% ======================= PORTADA =======================
+\begin{titlepage}
+\thispagestyle{empty}
+
+\begin{center}
+\begin{minipage}{0.15\textwidth}
+    \IfFileExists{ipn.png}{\includegraphics[width=\textwidth]{ipn.png}}{\rule{0pt}{2.5cm}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.6\textwidth}
+    \centering
+    {\Large\bfseries INSTITUTO POLITÉCNICO NACIONAL}\\[0.6cm]
+    {\large\itshape ESCUELA SUPERIOR DE CÓMPUTO}
+\end{minipage}
+\hfill
+\begin{minipage}{0.15\textwidth}
+    \IfFileExists{escom.png}{\includegraphics[width=\textwidth]{escom.png}}{\rule{0pt}{2.5cm}}
+\end{minipage}
+\end{center}
+
+\vspace{2.5cm}
+
+\noindent{\LARGE\bfseries Servicios Web: Arquitectura de Servicios y Concurrencia Optimista}
+
+\vspace{3.5cm}
+
+\noindent{\footnotesize\scshape\underline{Presenta}}\\[0.2cm]
+{\large\bfseries Aguilar Souza Iker Itzae}
+
+\vspace{1cm}
+
+\noindent{\footnotesize\scshape\underline{Grupo}}\\[0.2cm]
+{\large\bfseries 7CM1}
+
+\vspace{1cm}
+
+\noindent{\footnotesize\scshape\underline{Materia}}\\[0.2cm]
+{\large\bfseries Sistemas Distribuidos}
+
+\vfill
+
+\begin{flushright}
+{\large\bfseries Ciudad de México, 21 de octubre de 2026}
+\end{flushright}
+
+\end{titlepage}
+
+% ======================= ANTECEDENTES =======================
+\section{Antecedentes}
+
+Un \textbf{servicio web} es un componente de software accesible a través de la red mediante protocolos y formatos estandarizados, diseñado para ser consumido por otros programas y no por personas. Su rasgo definitorio no es la tecnología que emplea internamente, sino que su interfaz está \textbf{descrita de forma que cualquier cliente pueda invocarla} con independencia del lenguaje o la plataforma en que esté escrito.
+
+\subsection{La pila de servicios web}
+
+La arquitectura de servicios se organiza en capas, cada una apoyada en la inferior. De abajo hacia arriba:
+
+\begin{itemize}[itemsep=3pt]
+    \item \textbf{Comunicaciones.} El transporte. En la práctica totalidad de los casos, \textbf{HTTP} sobre TCP/IP. Aporta direccionamiento universal mediante URL, atraviesa cortafuegos y dispone de una semántica de métodos y códigos de estado ya definida.
+    \item \textbf{Mensajes.} El formato de la invocación y de su respuesta. Aquí conviven dos tradiciones: \textbf{SOAP}, que encapsula todo en un sobre XML y usa HTTP como mero túnel; y el estilo \textbf{REST}, que aprovecha los propios verbos de HTTP (\texttt{GET}, \texttt{POST}, \texttt{PUT}, \texttt{DELETE}) sobre recursos identificados por URL.
+    \item \textbf{Descripción.} El contrato: qué operaciones ofrece el servicio, con qué parámetros y qué devuelve. En el mundo SOAP es el \textbf{WSDL} (XML); en el mundo REST, \textbf{OpenAPI} con esquemas JSON.
+    \item \textbf{Procesos.} La capa superior, donde los servicios dejan de considerarse aislados: \textbf{descubrimiento} (localizar un servicio sin conocer su dirección), \textbf{agregación} (combinar varios en una operación de mayor nivel) y \textbf{coreografía} (la secuencia de interacciones que conforma un proceso de negocio).
+\end{itemize}
+
+Dos preocupaciones atraviesan verticalmente todas las capas:
+
+\begin{itemize}[itemsep=3pt]
+    \item \textbf{Seguridad:} autenticación, autorización y cifrado. Afecta al transporte (HTTPS), a los mensajes (firmas) y a los procesos (quién puede invocar qué).
+    \item \textbf{Gestión:} supervisión del estado de los servicios, registro de actividad y métricas. Sin ella un sistema distribuido es inoperable, porque los fallos dejan de ser evidentes.
+\end{itemize}
+
+\subsection{SOAP frente a REST}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+ & \textbf{SOAP} & \textbf{REST} \\
+\midrule
+Unidad de diseño   & Operación           & Recurso \\
+Endpoints          & Uno solo            & Uno por recurso \\
+Formato            & XML obligatorio     & JSON habitualmente \\
+Verbos de HTTP     & Siempre \texttt{POST} & \texttt{GET}, \texttt{POST}, \texttt{PUT}, \texttt{DELETE} \\
+Contrato           & WSDL, formal        & OpenAPI, descriptivo \\
+Errores            & \texttt{Fault} en el cuerpo & Códigos de estado de HTTP \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La diferencia de fondo es que SOAP trata a HTTP como un \textbf{medio de transporte} —da igual que debajo haya HTTP, SMTP o una cola de mensajes— mientras que REST lo trata como un \textbf{modelo de aplicación} y se apoya en su semántica.
+
+\subsection{Ausencia de estado y concurrencia}
+
+HTTP es un protocolo \textbf{sin estado}: cada petición es independiente y el servidor no está obligado a recordar nada entre una y otra. Esta propiedad es la que permite escalar horizontalmente, pero plantea un problema para operaciones que en las prácticas anteriores se resolvían reteniendo estado entre mensajes.
+
+En la práctica 3, un cliente «entraba» a la sección crítica y el servidor recordaba que era el titular hasta que la liberase. Con servicios web no hay conexión persistente ni sesión que sostenga esa titularidad. Caben dos soluciones:
+
+\begin{itemize}[itemsep=3pt]
+    \item \textbf{Control pesimista:} reproducir el bloqueo mediante un recurso de tipo \textit{lease}, que se adquiere, se renueva y expira. Funciona, pero reintroduce estado en el servidor y contradice el estilo.
+    \item \textbf{Control optimista:} no impedir el conflicto, sino \textbf{detectarlo}. El servidor asigna a cada recurso una etiqueta de versión (\texttt{ETag}) que entrega al leerlo; el cliente la devuelve en la cabecera \texttt{If-Match} al escribir, y si entretanto el recurso cambió, la escritura se rechaza.
+\end{itemize}
+
+El segundo es el mecanismo propio de HTTP, definido en el RFC 7232, y se apoya en dos códigos de estado: \textbf{412 Precondition Failed} cuando la precondición no se cumple, y \textbf{428 Precondition Required} cuando el servidor exige que se envíe. Se añade \textbf{409 Conflict} para los casos en que la operación es imposible por el estado del recurso, aunque la versión coincida.
+
+La diferencia filosófica con las prácticas anteriores es notable. El control pesimista \textbf{impide} que el conflicto ocurra, al precio de serializar los accesos; el optimista \textbf{deja que ocurra} y lo detecta después, apostando a que los conflictos son raros. Cuál conviene depende de la probabilidad de colisión, que a su vez depende de la duración de la ventana entre la lectura y la escritura.
+
+% ======================= PLANTEAMIENTO =======================
+\section{Planteamiento del Problema}
+
+Las cinco prácticas anteriores construyeron, pieza a pieza, un sistema distribuido completo: sockets, protocolo de aplicación propio, exclusión mutua centralizada, exclusión mutua distribuida y un middleware de objetos remotos. Todo ello con mecanismos \textbf{construidos a medida}, que funcionan pero que solo entienden los programas escritos para ellos.
+
+El problema que se aborda ahora es \textbf{reconstruir el sistema sobre estándares abiertos}, de modo que cualquier cliente —un navegador, una aplicación móvil, un servicio ajeno— pueda consumirlo sin conocer los detalles internos. Esto implica recorrer todas las capas de la pila de servicios y, en particular, enfrentar la consecuencia de adoptar HTTP: la pérdida del estado entre peticiones.
+
+Los requisitos son:
+
+\begin{itemize}[itemsep=2pt]
+    \item \textbf{Varios servicios independientes} que se descubran, se compongan y colaboren en un proceso de negocio, cubriendo la capa de Procesos.
+    \item \textbf{Dos estilos de mensajería} sobre el mismo recurso, REST y SOAP, para poder contrastarlos.
+    \item \textbf{Descripción formal} del servicio en ambos estilos: OpenAPI y WSDL.
+    \item \textbf{Concurrencia sin bloqueo:} resolver mediante \texttt{ETag} e \texttt{If-Match} el mismo problema que las prácticas 3 y 4 resolvían con cerrojos, y medir la diferencia.
+    \item \textbf{Seguridad y gestión} presentes en todos los servicios.
+    \item \textbf{Despliegue público} desde un repositorio de GitHub, con el servicio en una plataforma de nube y el cliente web en GitHub Pages.
+\end{itemize}
+
+% ======================= SOLUCIÓN =======================
+\section{Solución}
+
+El sistema se compone de cuatro servicios independientes, un módulo común y un cliente web.
+
+\subsection{Arquitectura}
+
+\begin{center}
+\ttfamily
+\begin{tabular}{c}
+Frontend (GitHub Pages) \\
+$\downarrow$ \\
+Agregador :8003 \\
+$\swarrow$ \qquad $\searrow$ \\
+Catálogo :8001 \quad $\longleftarrow$ \quad Rentas :8002 \\
+$\searrow$ \qquad $\swarrow$ \\
+Registro :8000 \\
+(descubrimiento) \\
+\end{tabular}
+\end{center}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Servicio} & \textbf{Puerto} & \textbf{Responsabilidad} \\
+\midrule
+\texttt{registro.py}   & 8000 & Descubrimiento: traduce nombres en URL \\
+\texttt{catalogo.py}   & 8001 & Catálogo. REST con \texttt{ETag} y endpoint SOAP \\
+\texttt{rentas.py}     & 8002 & Rentas. Compone el catálogo y reintenta \\
+\texttt{agregador.py}  & 8003 & Agregación y coreografía \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El módulo \texttt{comun.py} reúne lo transversal: resolución de direcciones por variable de entorno, CORS, verificación de la clave de API, cálculo de \texttt{ETag} y el cliente HTTP entre servicios.
+
+\subsection{Correspondencia con la pila}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Capa} & \textbf{Dónde se implementa} \\
+\midrule
+Procesos      & \texttt{registro.py} y \texttt{agregador.py} \\
+Descripción   & OpenAPI en \texttt{/docs}, WSDL en \texttt{/servicio.wsdl} \\
+Mensajes      & Endpoints REST y \texttt{/soap} de \texttt{catalogo.py} \\
+Comunicaciones& HTTP mediante FastAPI y uvicorn \\
+Seguridad     & \texttt{exigir\_clave()}, cabecera \texttt{X-API-Key}, HTTPS al desplegar \\
+Gestión       & \texttt{/health} y \texttt{/metricas} en los cuatro servicios \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Elección de FastAPI}
+
+Se eligió FastAPI porque \textbf{genera la capa de Descripción automáticamente}: a partir de las anotaciones de tipo y los modelos de datos produce un documento OpenAPI y una interfaz navegable en \texttt{/docs}. El contrato deja de ser documentación que se escribe aparte y se desactualiza, y pasa a derivarse del propio código. Es exactamente el papel que el WSDL cumple en SOAP, con la diferencia de que allí el contrato suele escribirse primero y el código generarse después.
+
+% ======================= IMPLEMENTACIÓN =======================
+\section{Implementación}
+
+\subsection{Capa de mensajes: ETag y verificación de precondiciones}
+
+\begin{lstlisting}[caption={Cálculo de la versión y comprobación (comun.py)}]
+def calcular_etag(estado) -> str:
+    """Huella del estado actual del recurso."""
+    datos = json.dumps(estado, sort_keys=True, ensure_ascii=False)
+    return '"' + hashlib.sha256(datos.encode("utf-8")).hexdigest()[:16] + '"'
+
+
+def verificar_if_match(if_match: str | None, etag_actual: str):
+    """Precondiciones de HTTP: 428 si falta, 412 si no coincide."""
+    if if_match is None:
+        raise HTTPException(
+            status_code=428,
+            detail="Se requiere la cabecera If-Match con el ETag leido")
+    if if_match != etag_actual and if_match != "*":
+        raise HTTPException(
+            status_code=412,
+            detail=f"El recurso cambio desde su lectura (ETag actual {etag_actual})")
+\end{lstlisting}
+
+\noindent\textbf{Explicación:} el \texttt{ETag} es una huella del contenido, no un número de secuencia arbitrario: dos estados idénticos producen la misma etiqueta. Se ordenan las claves antes de serializar para que la huella no dependa del orden del diccionario. La distinción entre \textbf{428} y \textbf{412} es deliberada: el primero indica que el cliente \textit{no envió} la precondición —un error de programación del cliente—, mientras que el segundo indica que la envió pero \textit{ya no es válida}, que es la situación de carrera legítima.
+
+\subsection{Operación de escritura con control optimista}
+
+\begin{lstlisting}[caption={Renta de una película (catalogo.py)}]
+@app.post("/catalogo/{titulo}/rentar", tags=["catalogo (REST)"],
+          dependencies=[Depends(exigir_clave)])
+def rentar(titulo: str, solicitud: SolicitudRenta, response: Response,
+           if_match: str = Header(default=None, alias="If-Match")):
+    metricas.peticiones += 1
+    with _candado:
+        pelicula = _buscar(titulo)
+
+        # Concurrencia optimista: no se bloquea, se comprueba
+        try:
+            verificar_if_match(if_match, pelicula.etag())
+        except HTTPException:
+            metricas.conflictos += 1
+            raise
+
+        if not pelicula.disponible:
+            metricas.conflictos += 1
+            raise HTTPException(
+                status_code=409,
+                detail=f"'{titulo}' ya esta rentada por el cliente {pelicula.rentada_por}")
+
+        pelicula.disponible = False
+        pelicula.rentada_por = solicitud.cliente
+        pelicula.version += 1
+        etag = pelicula.etag()
+
+    response.headers["ETag"] = etag
+    return {"mensaje": f"Renta de '{titulo}' concedida al cliente {solicitud.cliente}",
+            "pelicula": pelicula.como_dict()}
+\end{lstlisting}
+
+\noindent\textbf{Explicación:} el cerrojo \texttt{\_candado} protege únicamente la estructura de datos \textbf{dentro del proceso}, durante unos microsegundos; no es el mecanismo de coordinación entre clientes. La coordinación la hace la comprobación del \texttt{ETag}, que no retiene nada entre peticiones. Obsérvese que la respuesta incluye el \textbf{nuevo} \texttt{ETag}: así el cliente que acaba de escribir puede encadenar otra operación sin releer. La versión se incrementa en cada cambio, lo que garantiza que la huella sea distinta aunque el estado anterior se repita.
+
+\subsection{Composición de servicios con reintento}
+
+\begin{lstlisting}[caption={El servicio de rentas absorbe los conflictos (rentas.py)}]
+for intento in range(1, MAXIMO_REINTENTOS + 1):
+    # 1. Lectura: obtener el estado actual y su ETag
+    lectura = catalogo.get(f"/catalogo/{solicitud.titulo}")
+    etag = lectura.headers.get("ETag")
+
+    if not lectura.json().get("disponible"):
+        raise HTTPException(status_code=409,
+                            detail=f"'{solicitud.titulo}' no esta disponible")
+
+    # 2. Escritura condicionada al ETag leido
+    escritura = catalogo.post(
+        f"/catalogo/{solicitud.titulo}/rentar",
+        json={"cliente": solicitud.cliente},
+        headers=_cabeceras(etag))
+
+    if escritura.status_code == 200:
+        ...
+        return {"mensaje": "Renta registrada", "renta": registro, "intentos": intento}
+
+    if escritura.status_code in (409, 412):
+        # Otro cliente modifico el recurso: se vuelve a leer y reintentar
+        reintentos += 1
+        metricas.conflictos += 1
+        continue
+\end{lstlisting}
+
+\noindent\textbf{Explicación:} este es el patrón completo de la concurrencia optimista, \textbf{leer--modificar--escribir con reintento}. El bucle es imprescindible: sin él, la detección del conflicto solo sirve para informar del fracaso. Nótese que el reintento vuelve a \textbf{leer}, porque reenviar el mismo \texttt{ETag} caducado fallaría de nuevo indefinidamente. El límite de intentos evita que dos clientes en competencia perpetua consuman el servicio. Se distingue además entre el \textbf{409 semántico} que se lanza antes de intentar —la película no está disponible, y reintentar no lo cambiaría— y el \textbf{412 técnico}, que sí merece otro intento.
+
+\subsection{Capa de procesos: coreografía}
+
+\begin{lstlisting}[caption={Secuencia completa del proceso de negocio (agregador.py)}]
+# Paso 1: consultar el catalogo
+respuesta = catalogo.get("/catalogo")
+peliculas = respuesta.json()["peliculas"]
+pasos.append({"paso": 1, "accion": "GET catalogo/catalogo",
+              "resultado": f"{len(peliculas)} peliculas, ETag {respuesta.headers.get('ETag')}"})
+
+# Paso 2: elegir una disponible
+disponibles = [p["titulo"] for p in peliculas if p["disponible"]]
+elegida = disponibles[0]
+
+# Paso 3: delegar la renta en el servicio correspondiente
+creacion = rentas.post("/rentas",
+                       json={"cliente": solicitud.cliente, "titulo": elegida},
+                       headers={"X-API-Key": CLAVE_API})
+
+# Paso 4: confirmar contra el catalogo
+confirmacion = catalogo.get(f"/catalogo/{elegida}").json()
+\end{lstlisting}
+
+\noindent\textbf{Explicación:} el agregador no posee ningún dato: su valor está en \textbf{conocer el orden de las invocaciones}. Cada paso se registra para que la traza del proceso sea observable, que es justamente lo que la capa de Procesos pretende describir. Nótese que el agregador llama al servicio de \textit{rentas} y no directamente al catálogo: respeta las fronteras entre servicios en lugar de saltárselas, de modo que la lógica de reintento vive en un solo lugar.
+
+\subsection{Capa de mensajes: el contraste con SOAP}
+
+\begin{lstlisting}[caption={Endpoint único y errores dentro del cuerpo (catalogo.py)}]
+def _fault(codigo: str, mensaje: str) -> Response:
+    """En SOAP el error viaja DENTRO del cuerpo, con codigo HTTP 200."""
+    cuerpo = (f'    <soap:Fault>\n'
+              f'      <faultcode>{codigo}</faultcode>\n'
+              f'      <faultstring>{escape(mensaje)}</faultstring>\n'
+              f'    </soap:Fault>')
+    return _sobre(cuerpo)
+
+
+@app.post("/soap", tags=["catalogo (SOAP)"])
+async def punto_soap(request: Request):
+    """Acepta ConsultarCatalogo y Rentar dentro de un sobre SOAP."""
+    crudo = await request.body()
+    arbol = ET.fromstring(crudo)
+    cuerpo = arbol.find(f"{{{SOAP_ENV}}}Body")
+    operacion = cuerpo[0]
+    nombre = operacion.tag.split("}")[-1]
+    ...
+\end{lstlisting}
+
+\noindent\textbf{Explicación:} todas las operaciones SOAP llegan al \textbf{mismo endpoint} mediante \texttt{POST}, y cuál se invoca se determina leyendo el primer elemento del cuerpo del sobre. La URL deja de identificar un recurso y pasa a ser una simple dirección de buzón. La consecuencia más visible es el tratamiento de los errores: un \texttt{Fault} se devuelve con código HTTP \textbf{200}, porque desde el punto de vista de HTTP el mensaje se entregó correctamente; el error pertenece a la capa de aplicación, no a la de transporte.
+
+\subsection{Capas transversales}
+
+\begin{lstlisting}[caption={Seguridad y gestión (comun.py y rentas.py)}]
+def exigir_clave(x_api_key: str = Header(default=None)):
+    """Dependencia de FastAPI: protege las operaciones de escritura."""
+    if x_api_key != CLAVE_API:
+        raise HTTPException(status_code=401,
+                            detail="Falta la cabecera X-API-Key o su valor es incorrecto")
+    return x_api_key
+
+
+@app.get("/health", tags=["gestion"])
+def salud():
+    """Un servicio no esta sano si su dependencia no responde."""
+    try:
+        dependencia = catalogo.get("/health").status_code == 200
+    except Exception:
+        dependencia = False
+    return {"estado": "vivo" if dependencia else "degradado",
+            "servicio": "rentas", "dependencia_catalogo": dependencia}
+\end{lstlisting}
+
+\noindent\textbf{Explicación:} la seguridad se expresa como una \textbf{dependencia} que se declara en cada endpoint que la necesita, de modo que las lecturas quedan abiertas y las escrituras protegidas sin repetir código. La comprobación de salud es \textbf{transitiva}: un servicio cuya dependencia no responde se declara \textit{degradado} aunque él mismo funcione, porque en una arquitectura compuesta la salud propia no basta para prestar el servicio.
+
+\subsection{Reutilización de conexiones}
+
+\begin{lstlisting}[caption={Cliente HTTP persistente entre servicios (comun.py)}]
+class ClienteServicio:
+    """Mantiene la conexion abierta entre invocaciones (keep-alive)."""
+
+    def __init__(self, servicio: str, tiempo_limite: float = 10.0):
+        self.servicio = servicio
+        self._http = httpx.Client(
+            timeout=tiempo_limite,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50),
+        )
+\end{lstlisting}
+
+\noindent\textbf{Explicación:} la primera versión abría un socket nuevo en cada invocación entre servicios. Funcionaba, pero la latencia media de una renta era de \textbf{3,477 s}; con el cliente persistente bajó a \textbf{0,018 s}, casi doscientas veces menos. El coste de establecer una conexión TCP —el saludo de tres vías estudiado en la práctica 2— se paga una sola vez en lugar de en cada llamada. En una arquitectura de servicios, donde una petición del usuario desencadena varias invocaciones internas, ese coste se multiplica.
+
+% ======================= RESULTADOS =======================
+\section{Resultados}
+
+\subsection{Verificación de las capas}
+
+Los cuatro servicios se arrancan en orden y se registran automáticamente:
+
+\begin{lstlisting}[style=traza,caption={Descubrimiento y salud compuesta}]
+$ curl http://127.0.0.1:8003/health
+{"estado":"vivo","servicio":"agregador",
+ "dependencias":{"catalogo":true,"rentas":true,"registro":true}}
+
+$ curl http://127.0.0.1:8003/servicios
+{"servicios":[
+  {"nombre":"rentas",   "url":"http://127.0.0.1:8002"},
+  {"nombre":"catalogo", "url":"http://127.0.0.1:8001"},
+  {"nombre":"agregador","url":"http://127.0.0.1:8003"}]}
+\end{lstlisting}
+
+El control de concurrencia responde con el código adecuado en cada situación:
+
+\begin{lstlisting}[style=traza,caption={Secuencia completa de códigos de estado}]
+1. GET /catalogo                      -> 200  ETag: "ef18d834ca4c77ad"
+2. GET /catalogo/The Matrix           -> 200  ETag: "2a7cce75dc62ea21"
+3. POST .../rentar  sin If-Match      -> 428  Precondition Required
+4. POST .../rentar  sin X-API-Key     -> 401  Unauthorized
+5. POST .../rentar  con If-Match      -> 200  {"mensaje":"Renta concedida...",
+                                               "version":2}
+6. POST .../rentar  con el MISMO ETag -> 412  "El recurso cambio desde su lectura
+                                               (ETag actual \"70179933061ef35d\")"
+\end{lstlisting}
+
+El paso 6 es el núcleo del mecanismo: el \texttt{ETag} que era válido en el paso 5 ha dejado de serlo precisamente \textbf{porque} la operación anterior tuvo éxito. Un segundo cliente que hubiera leído a la vez que el primero recibiría ese mismo 412.
+
+\subsection{Contraste entre REST y SOAP}
+
+\begin{lstlisting}[style=traza,caption={La misma operación fallida en los dos estilos}]
+--- REST ---
+POST /catalogo/The%20Matrix/rentar   (pelicula ya rentada)
+--> HTTP 409 Conflict
+    {"detail":"'The Matrix' ya esta rentada por el cliente 3"}
+
+--- SOAP ---
+POST /soap
+  <soap:Envelope><soap:Body>
+    <Rentar xmlns="http://escom.ipn.mx/blockbuster">
+      <Titulo>The Matrix</Titulo><Cliente>5</Cliente>
+    </Rentar>
+  </soap:Body></soap:Envelope>
+--> HTTP 200 OK          <-- el transporte considera que todo fue bien
+    <soap:Envelope><soap:Body>
+      <soap:Fault>
+        <faultcode>soap:Server</faultcode>
+        <faultstring>'The Matrix' ya esta rentada</faultstring>
+      </soap:Fault>
+    </soap:Body></soap:Envelope>
+\end{lstlisting}
+
+La diferencia es ilustrativa. En REST el error se expresa en el \textbf{protocolo}, de modo que cualquier intermediario —un proxy, una caché, un balanceador— puede reaccionar ante un 409 sin interpretar el cuerpo. En SOAP el error está \textbf{oculto dentro del mensaje}: para un intermediario, la petición fue un éxito. Esa opacidad es el precio de la independencia respecto al transporte.
+
+\subsection{Experimento de concurrencia optimista}
+
+Se ejecutaron seis clientes concurrentes, cinco ciclos cada uno, sobre un catálogo de tres películas, con una ventana media de $0{,}3$ s entre la lectura del \texttt{ETag} y la escritura. Se compararon dos configuraciones idénticas salvo en un punto: si los conflictos se reintentan o no.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+ & \textbf{Sin reintento} & \textbf{Con reintento} \\
+ & \small(cliente $\to$ catálogo) & \small(cliente $\to$ rentas $\to$ catálogo) \\
+\midrule
+Operaciones solicitadas       & 25     & 28 \\
+Rentas concedidas             & 19     & 21 \\
+Conflictos vistos por el cliente & 6   & 7 \\
+\quad de ellos, 412 (técnicos)   & \textbf{6}   & \textbf{0} \\
+\quad de ellos, 409 (semánticos) & 0   & 7 \\
+Reintentos internos del servicio & ---  & 8 \\
+Intentos por renta concedida  & 1,32   & 1,38 \\
+Latencia media                & 0,193 s & 0,281 s \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El resultado decisivo está en el desglose de los conflictos. \textbf{Sin reintento, los seis conflictos son 412}: fallos puramente técnicos provocados por la carrera, en los que la película podía estar perfectamente disponible y el usuario recibe un error que no le dice nada útil. \textbf{Con reintento, el cliente no ve ni un solo 412}: los ocho que se produjeron fueron absorbidos por el servicio de rentas, que releyó y volvió a intentarlo. Los siete rechazos que quedan son 409 \textbf{legítimos}: la película estaba realmente rentada, y ningún reintento lo cambiaría.
+
+El precio es la latencia, que sube de $0{,}193$ s a $0{,}281$ s, un $45\%$ más. Es el coste de las lecturas y escrituras repetidas. A cambio, el conflicto deja de ser problema del cliente y se convierte en un detalle de implementación del servicio.
+
+\subsection{Sobre el tamaño de la ventana}
+
+Una observación surgida durante las pruebas merece mención. Antes de introducir el cliente HTTP persistente, la latencia era de $3{,}477$ s y la tasa de conflicto rondaba el $50\%$. Al reducir la latencia a $0{,}018$ s, los conflictos \textbf{desaparecieron casi por completo}, hasta el punto de que hubo que añadir una ventana artificial configurable para poder medirlos.
+
+Esto confirma de forma empírica el principio que gobierna la concurrencia optimista: \textbf{la probabilidad de conflicto es proporcional a la duración de la ventana} entre la lectura y la escritura. De ahí que el enfoque optimista sea adecuado cuando las operaciones son breves y las colisiones improbables, y que el pesimista de las prácticas 3 y 4 lo sea cuando la sección crítica es larga o la contención alta. La elección no es cuestión de gusto, sino una consecuencia medible de los tiempos del sistema.
+
+\subsection{Despliegue}
+
+El repositorio contiene todo lo necesario para desplegarse:
+
+\begin{itemize}[itemsep=2pt]
+    \item \texttt{render.yaml} declara los cuatro servicios e inyecta en cada uno las URL de los demás mediante variables de entorno, de forma que el mismo código funciona en local y en la nube sin modificarse.
+    \item \texttt{docs/index.html} es el cliente web, publicable en GitHub Pages.
+    \item Las cabeceras CORS se verificaron con un origen distinto, incluida \texttt{Access-Control-Expose-Headers: ETag}, sin la cual el navegador recibe la cabecera pero \textbf{JavaScript no puede leerla}, lo que rompería el mecanismo completo.
+\end{itemize}
+
+\begin{lstlisting}[style=traza,caption={Verificación de CORS desde otro origen}]
+$ curl -X OPTIONS .../catalogo/The%20Matrix/rentar \
+       -H "Origin: https://usuario.github.io" \
+       -H "Access-Control-Request-Method: POST" \
+       -H "Access-Control-Request-Headers: if-match,x-api-key,content-type"
+HTTP/1.1 200 OK
+access-control-allow-origin: *
+access-control-allow-methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+access-control-allow-headers: if-match,x-api-key,content-type
+
+$ curl .../catalogo -H "Origin: https://usuario.github.io"
+etag: "4812f103051a1d01"
+access-control-expose-headers: ETag
+\end{lstlisting}
+
+% ======================= CONCLUSIONES =======================
+\section{Conclusiones}
+
+Esta práctica cierra el recorrido del curso reconstruyendo, sobre estándares, lo que las anteriores habían resuelto con mecanismos propios. El contraste con la práctica 5 es especialmente revelador: allí se construyó un middleware de objetos remotos que funcionaba, pero que solo entendían los programas escritos para él. Aquí el sistema es consumible desde un navegador, desde \texttt{curl} o desde cualquier lenguaje, sin haber escrito una sola línea de cliente específica. \textbf{Esa es la aportación de los estándares}: no resuelven problemas que no supiéramos resolver, sino que hacen que la solución sea interoperable.
+
+Sobre la \textbf{pila de servicios}, implementarla capa por capa dejó claro que no es una clasificación académica sino una separación de responsabilidades con consecuencias prácticas. La capa de Comunicaciones aportó HTTP y con él un espacio de nombres universal. La de Mensajes obligó a decidir entre aprovechar la semántica del protocolo o tunelizarla. La de Descripción resultó ser la que da valor real al servicio: un servicio sin contrato es inutilizable por terceros, y el hecho de que FastAPI derive el OpenAPI del propio código elimina la fuente habitual de desincronización entre documentación e implementación. La capa de Procesos fue la que justificó tener varios servicios en lugar de uno.
+
+Sobre el \textbf{contraste entre SOAP y REST}, implementar ambos sobre el mismo recurso mostró que la diferencia esencial no está en XML frente a JSON, sino en \textbf{qué papel se le asigna a HTTP}. SOAP lo usa como un túnel y define su propia semántica dentro del sobre, lo que le da independencia del transporte al precio de volverse opaco: un error se entrega con código 200 y ningún intermediario puede reaccionar a él. REST se apoya en la semántica que HTTP ya tiene, y por eso sus errores, sus cachés y sus precondiciones funcionan con la infraestructura existente.
+
+Sobre la \textbf{concurrencia}, la lección es la más valiosa. El mismo problema de las prácticas 3 y 4 —dos clientes que quieren la misma película— se resolvió con la filosofía contraria. Allí se impedía el conflicto bloqueando; aquí se deja ocurrir y se detecta con \texttt{ETag} e \texttt{If-Match}. Las mediciones mostraron que ninguna de las dos es universalmente mejor: la probabilidad de conflicto resultó ser proporcional a la ventana entre lectura y escritura, hasta el punto de que al bajar la latencia de $3{,}477$ s a $0{,}018$ s los conflictos prácticamente desaparecieron. El enfoque optimista conviene cuando las operaciones son breves; el pesimista, cuando la sección crítica es larga o la contención es alta.
+
+El experimento dejó además un resultado con valor de diseño: el reintento no reduce el número de conflictos, sino que \textbf{cambia quién los padece}. Sin reintento el cliente recibió seis errores 412 que no significaban nada para él; con reintento no recibió ninguno, y los únicos rechazos que llegaron fueron 409 honestos que describían una situación real. Un $45\%$ más de latencia a cambio de que el cliente deje de ver fallos que no son suyos es, en casi cualquier sistema, un buen negocio.
+
+Queda por señalar una \textbf{limitación} que la práctica no resuelve y que conviene no disimular: el estado vive en la memoria del proceso. Mientras haya una sola instancia de cada servicio el sistema es correcto, pero la propiedad que hace atractivo el estilo sin estado —poder replicar horizontalmente— es justamente la que este diseño no puede aprovechar, porque cada réplica tendría su propio catálogo. Resolverlo exigiría una base de datos compartida, y con ella reaparecerían, en otra capa, los mismos problemas de concurrencia que esta práctica resolvió con \texttt{ETag}. Es un recordatorio de que en los sistemas distribuidos los problemas rara vez se eliminan: se desplazan de capa.
+
+\end{document}
