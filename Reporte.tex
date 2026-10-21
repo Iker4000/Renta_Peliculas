@@ -542,6 +542,55 @@ etag: "4812f103051a1d01"
 access-control-expose-headers: ETag
 \end{lstlisting}
 
+\subsection{Fallos que solo aparecen al desplegar}
+
+El sistema funcionaba sin un solo error en la máquina de desarrollo. Al llevarlo a Render aparecieron tres fallos que en local eran \textbf{imposibles de observar}, porque ninguno estaba en la lógica del programa: los tres los introducía el entorno de ejecución. Se documentan aquí porque constituyen el resultado más instructivo de la práctica.
+
+\subsubsection*{El proxy debilita los ETag}
+
+El primero inutilizaba por completo el mecanismo central de la práctica. La lectura de un recurso devolvía una etiqueta distinta de la que el servidor había calculado:
+
+\begin{lstlisting}[style=traza,caption={La etiqueta que recibe el cliente no es la que emite el servidor}]
+ETag calculado por el servidor:   "2a7cce75dc62ea21"
+ETag que llega al cliente:      W/"2a7cce75dc62ea21"
+\end{lstlisting}
+
+El prefijo \texttt{W/} marca la etiqueta como \textit{validador débil}, y lo añade el proxy de la plataforma por obligación normativa: comprime la respuesta antes de entregarla, de modo que lo que el cliente recibe ya no es idéntico byte a byte a lo que produjo el origen. El RFC 9110 exige que el validador de una representación transformada se marque como débil, precisamente para que nadie la use en comparaciones que requieran identidad exacta.
+
+La consecuencia era que el cliente devolvía \texttt{If-Match} con el prefijo, el servidor lo comparaba mediante igualdad literal contra su etiqueta sin prefijo, y \textbf{ninguna escritura podía completarse}. Las métricas del servicio de rentas lo registraron con precisión: cinco conflictos y cinco reintentos, todos fallidos, seguidos de un 503 hacia el agregador. La coreografía moría en su tercer paso.
+
+La corrección consiste en comparar la etiqueta opaca, descartando el prefijo. La decisión merece justificarse, porque formalmente \texttt{If-Match} exige comparación \textit{fuerte} y una etiqueta débil no debería coincidir nunca: lo que legitima ignorarla aquí es que \textbf{la debilidad la introduce la infraestructura y no un cambio de estado del recurso}. El hash sigue siendo el discriminante, y una etiqueta caducada continúa produciendo 412.
+
+\subsubsection*{El directorio del registro es estado blando}
+
+El segundo fallo hacía que el descubrimiento mintiera. El registro respondía con un directorio vacío mientras los tres servicios estaban vivos y atendiendo peticiones.
+
+La causa era un supuesto implícito en el diseño: cada servicio se daba de alta \textbf{una sola vez, al arrancar}. Eso basta mientras nada se reinicie, pero el directorio vive en memoria y la plataforma suspende los servicios inactivos. Al despertar, el registro había perdido su diccionario y los demás no tenían ningún motivo para volver a presentarse.
+
+Lo revelador es que el error no estaba en la implementación sino en el \textbf{modelo}: tratar un alta como una inscripción permanente. Los registros reales —Eureka, Consul— tratan las altas como \textbf{arrendamientos que hay que renovar}, no porque sea más cómodo, sino porque un servicio puede desaparecer sin avisar y el registro no tiene forma de enterarse. La solución adoptada sigue ese modelo: cada servicio se republica al atender su endpoint de gestión, y el agregador, cuando detecta que falta alguien en el directorio, invoca una operación que fuerza el alta y vuelve a leerlo.
+
+\begin{lstlisting}[style=traza,caption={El directorio se repara solo, verificado contra el despliegue}]
+$ curl .../registro/servicios
+{"servicios":[]}
+
+$ curl .../agregador/servicios
+  agregador -> https://sd-agregador-iker.onrender.com
+  catalogo  -> https://sd-catalogo-iker.onrender.com
+  rentas    -> https://sd-rentas-iker.onrender.com
+\end{lstlisting}
+
+Se descartó deliberadamente la alternativa evidente, un latido periódico, porque mantendría despierto al registro de forma permanente y agotaría la cuota de cómputo gratuita. La republicación perezosa aprovecha el tráfico que el servicio ya está atendiendo, de modo que un sistema en reposo no genera tráfico alguno.
+
+\subsubsection*{La red privada no sirve donde se la esperaba}
+
+El tercero habría impedido el despliegue por completo. La configuración inicial resolvía las direcciones entre servicios por la \textbf{red privada} de la plataforma, que es lo que recomienda cualquier guía: el tráfico interno no sale a la red pública, ahorra latencia y no se expone. Pero en el plan gratuito un servicio \textbf{puede enviar} tráfico privado y \textbf{no puede recibirlo}, de modo que el agregador nunca habría alcanzado al catálogo.
+
+El mismo error tenía una segunda cara más sutil: la propiedad que entrega la dirección privada devuelve un par \texttt{host:puerto} \textbf{sin esquema}, y el cliente HTTP lo rechaza antes de intentar la conexión. Dos fallos distintos en la misma línea de configuración, ninguno de los cuales podía manifestarse en local, donde las direcciones son literales de \texttt{localhost}.
+
+\subsubsection*{Qué tienen en común}
+
+Los tres fallos comparten una estructura: el programa era correcto respecto a los supuestos con los que se escribió, y lo que falló fueron \textbf{los supuestos}. Que un ETag llega intacto, que un servicio registrado permanece registrado, que una dirección interna es alcanzable. Cada uno es una de las falacias de la computación distribuida que la práctica 5 había enunciado en abstracto, aquí comprobadas en un despliegue real. La diferencia entre escribir un servicio web y \textbf{operarlo} es exactamente esta: en local se valida la lógica, pero los supuestos solo se validan desplegando.
+
 % ======================= CONCLUSIONES =======================
 \section{Conclusiones}
 
@@ -554,6 +603,8 @@ Sobre el \textbf{contraste entre SOAP y REST}, implementar ambos sobre el mismo 
 Sobre la \textbf{concurrencia}, la lección es la más valiosa. El mismo problema de las prácticas 3 y 4 —dos clientes que quieren la misma película— se resolvió con la filosofía contraria. Allí se impedía el conflicto bloqueando; aquí se deja ocurrir y se detecta con \texttt{ETag} e \texttt{If-Match}. Las mediciones mostraron que ninguna de las dos es universalmente mejor: la probabilidad de conflicto resultó ser proporcional a la ventana entre lectura y escritura, hasta el punto de que al bajar la latencia de $3{,}477$ s a $0{,}018$ s los conflictos prácticamente desaparecieron. El enfoque optimista conviene cuando las operaciones son breves; el pesimista, cuando la sección crítica es larga o la contención es alta.
 
 El experimento dejó además un resultado con valor de diseño: el reintento no reduce el número de conflictos, sino que \textbf{cambia quién los padece}. Sin reintento el cliente recibió seis errores 412 que no significaban nada para él; con reintento no recibió ninguno, y los únicos rechazos que llegaron fueron 409 honestos que describían una situación real. Un $45\%$ más de latencia a cambio de que el cliente deje de ver fallos que no son suyos es, en casi cualquier sistema, un buen negocio.
+
+Sobre el \textbf{despliegue}, la práctica dejó su lección más inesperada. El sistema no falló por nada que estuviera mal programado, sino por tres supuestos que la máquina de desarrollo nunca puso a prueba: que un \texttt{ETag} llega al cliente tal como se emitió, que un servicio dado de alta sigue dado de alta, y que una dirección interna es alcanzable. Los tres se rompieron en la nube, y los tres son casos concretos de las falacias de la computación distribuida que la práctica anterior había enunciado en abstracto. El fallo de los \texttt{ETag} es el más elocuente: un intermediario que cumplía escrupulosamente la norma —marcar como débil el validador de una representación que ha transformado— bastaba para inutilizar el mecanismo completo de concurrencia optimista, sin que una sola línea del programa fuera incorrecta. \textbf{En local se valida la lógica; los supuestos solo se validan desplegando.}
 
 Queda por señalar una \textbf{limitación} que la práctica no resuelve y que conviene no disimular: el estado vive en la memoria del proceso. Mientras haya una sola instancia de cada servicio el sistema es correcto, pero la propiedad que hace atractivo el estilo sin estado —poder replicar horizontalmente— es justamente la que este diseño no puede aprovechar, porque cada réplica tendría su propio catálogo. Resolverlo exigiría una base de datos compartida, y con ella reaparecerían, en otra capa, los mismos problemas de concurrencia que esta práctica resolvió con \texttt{ETag}. Es un recordatorio de que en los sistemas distribuidos los problemas rara vez se eliminan: se desplazan de capa.
 
