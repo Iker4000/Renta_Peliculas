@@ -77,7 +77,7 @@ curl -i http://127.0.0.1:8001/catalogo/The%20Matrix
 # 2. Escribir enviándolo
 curl -X POST http://127.0.0.1:8001/catalogo/The%20Matrix/rentar \
      -H "Content-Type: application/json" \
-     -H "X-API-Key: practica6" \
+     -H "X-API-Key: renta-peliculas" \
      -H 'If-Match: "2a7cce75dc62ea21"' \
      -d '{"cliente": 3}'
 ```

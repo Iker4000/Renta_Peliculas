@@ -47,7 +47,7 @@ def url_de(servicio: str) -> str:
 
 # --- Capa transversal de seguridad ------------------------------------------
 
-CLAVE_API = os.environ.get("CLAVE_API", "practica6")
+CLAVE_API = os.environ.get("CLAVE_API", "renta-peliculas")
 
 
 def exigir_clave(x_api_key: str = Header(default=None)):
