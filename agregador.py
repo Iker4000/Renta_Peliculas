@@ -22,6 +22,9 @@ app = FastAPI(
 )
 permitir_origenes(app)
 
+# Servicios que deben figurar en el directorio; si falta alguno, se repara.
+ESPERADOS = {"catalogo", "rentas", "agregador"}
+
 metricas = Metricas("agregador")
 catalogo = ClienteServicio("catalogo")
 rentas = ClienteServicio("rentas")
@@ -38,19 +41,26 @@ class SolicitudFlujo(BaseModel):
 def servicios_disponibles():
     """Consulta el registro: que servicios hay y donde estan.
 
-    Si el directorio vuelve vacio es que el registro perdio su estado, no
-    que no haya servicios. Entonces se toca la gestion de cada uno para
-    que se republique y se vuelve a leer, de modo que el directorio se
-    repara solo en lugar de quedarse mintiendo.
+    Un directorio incompleto no significa que falten servicios, sino que el
+    registro perdio su estado: se vacia al reiniciarse o al despertar de una
+    suspension, y los servicios que ya se habian dado de alta no vuelven a
+    presentarse por su cuenta.
+
+    Basta con que falte uno para reparar el directorio: se toca la gestion
+    de cada dependencia -lo que provoca que se republique- y se vuelve a
+    leer. Comprobar solo si esta vacio no sirve, porque el caso habitual es
+    el parcial: el registro se reinicia y despues recibe el alta de alguno.
     """
     metricas.peticiones += 1
     try:
         directorio = registro.get("/servicios").json()
-        if not directorio.get("servicios"):
+        presentes = {s.get("nombre") for s in directorio.get("servicios", [])}
+        if not ESPERADOS.issubset(presentes):
             asegurar_registro("agregador", url_de("agregador"), forzar=True)
             for dependencia in (catalogo, rentas):
                 try:
-                    dependencia.get("/health")
+                    dependencia.post("/registrarse",
+                                     headers={"X-API-Key": CLAVE_API})
                 except Exception:
                     pass
             directorio = registro.get("/servicios").json()

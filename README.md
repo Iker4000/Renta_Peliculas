@@ -92,6 +92,13 @@ curl -X POST http://127.0.0.1:8001/catalogo/The%20Matrix/rentar \
 | `412` | El recurso cambió desde la lectura: hay que releer y reintentar |
 | `428` | Falta la cabecera `If-Match` |
 
+Un proxy que recomprime la respuesta está obligado a marcar el `ETag` como
+*débil*, anteponiéndole `W/`, porque lo que entrega ya no es idéntico byte a
+byte a lo que produjo el origen. Render lo hace. Por eso la comparación de
+`If-Match` ignora ese prefijo: la debilidad la introduce la infraestructura,
+no un cambio de estado del recurso. Una comparación literal daría `412` en
+todas las escrituras al desplegar, aunque en local funcione.
+
 ## Prueba de carga
 
 ```bash
@@ -133,6 +140,14 @@ https://<usuario>.github.io/<repo>/?catalogo=https://sd-catalogo-iker.onrender.c
 - **El estado vive en memoria.** El catálogo es una estructura de Python, así
   que funciona con una instancia por servicio pero no sobrevive a un reinicio
   ni se comparte entre réplicas. Un sistema real usaría una base de datos.
+
+  El directorio del registro también es estado en memoria, pero ahí sí está
+  mitigado: las altas se tratan como arrendamientos que hay que renovar, no
+  como inscripciones permanentes. Cada servicio se republica al atender su
+  `/health` (como máximo una vez cada dos minutos, para no inundar al
+  registro) y expone `POST /registrarse`, protegido por `X-API-Key`, que
+  fuerza el alta. El `/servicios` del agregador lo invoca cuando detecta que
+  falta alguien en el directorio, de modo que se repara solo.
 - **La capa gratuita de Render duerme** tras 15 minutos de inactividad y tarda
   cerca de un minuto en responder a la primera petición.
 - **CORS está abierto a cualquier origen** (`*`) para simplificar la práctica.

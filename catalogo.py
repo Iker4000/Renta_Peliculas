@@ -338,6 +338,20 @@ def salud():
     return {"estado": "vivo", "servicio": "catalogo"}
 
 
+@app.post("/registrarse", tags=["gestion"])
+def volver_a_registrarse(_clave: str = Depends(exigir_clave)):
+    """Fuerza el alta de este servicio en el registro.
+
+    El alta perezosa de /health esta limitada en el tiempo para no inundar
+    al registro, pero esa misma limitacion la vuelve inservible para
+    reparar un directorio que acaba de perderse. Este endpoint salta el
+    limite: lo usa el agregador cuando detecta que el directorio esta
+    incompleto.
+    """
+    asegurar_registro("catalogo", url_de("catalogo"), forzar=True)
+    return {"mensaje": "Servicio 'catalogo' republicado en el registro"}
+
+
 @app.get("/metricas", tags=["gestion"])
 def ver_metricas():
     return metricas.como_dict()
